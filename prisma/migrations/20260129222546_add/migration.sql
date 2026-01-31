@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "Invoice" ADD COLUMN     "currency" TEXT NOT NULL DEFAULT 'EUR',
+ADD COLUMN     "emissionDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "invoiceSeries" TEXT NOT NULL DEFAULT '2026',
+ADD COLUMN     "operationDate" TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "InvoiceItem" ADD COLUMN     "taxRate" DECIMAL(5,2) NOT NULL DEFAULT 21.00;

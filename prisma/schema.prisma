@@ -1,0 +1,144 @@
+// This is your data definition file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["app"]
+}
+
+enum UserRole {
+  USER
+  ADMIN
+
+  @@schema("app")
+}
+
+// 1. The Tenant (Company)
+model Company {
+  id         String   @id @default(uuid()) // Unique ID like 'a1b2-c3d4...'
+  name       String
+  email      String?
+  phone      String?
+  street     String?  // Street address
+  city       String?
+  postalCode String?
+  state      String?  // State/Province/Region (optional)
+  country    String?
+  vatNumber  String?  // Tax ID
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relationships
+  users       User[]    // A company has many employees
+  clients     Client[]  // A company has many clients
+  invoices    Invoice[] // A company has many invoices
+  invitations CompanyInvitation[] // Company can send invitations
+
+  @@schema("app")
+}
+
+// 2. The Employee (User)
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  googleId  String?  @unique // For Google Login
+  avatarUrl String?
+  role      UserRole @default(USER)
+
+  // Multi-tenancy: Every user belongs to a Company (optional for first-time users)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("app")
+}
+
+// 2.5 Company Invitations
+model CompanyInvitation {
+  id         String   @id @default(uuid())
+  email      String
+  token      String   @unique
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@schema("app")
+}
+
+// 3. The Client
+model Client {
+  id         String   @id @default(uuid())
+  name       String
+  email      String?
+  phone      String?
+  street     String?  // Street address (line 1 and 2)
+  city       String?
+  postalCode String?
+  state      String?  // State/Province/Region (optional)
+  country    String?
+  vatNumber  String?  // Tax ID
+  
+  // Multi-tenancy: Client belongs to a Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Relationships
+  invoices  Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("app")
+}
+
+// 4. The Invoice
+model Invoice {
+  id          String   @id @default(uuid())
+  invoiceNumber String // e.g., "INV-001"
+  invoiceSeries String @default("2026") // e.g., "2024"
+  reference     String? // Reference field for the invoice
+  description   String? // Optional description for the invoice
+  status        String   @default("DRAFT") // DRAFT, PENDING, PAID, OVERDUE
+  dueDate       DateTime
+  emissionDate  DateTime @default(now())
+  operationDate DateTime?
+  currency      String   @default("EUR") // Currency code, e.g., USD, EUR
+
+  // Multi-tenancy: Invoice belongs to a Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Client relationship (required)
+  clientId  String
+  client    Client @relation(fields: [clientId], references: [id])
+
+  // Invoice Items (The rows inside the invoice)
+  items InvoiceItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("app")
+}
+
+// 5. Invoice Items (Rows)
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  description String
+  quantity    Int
+  price       Decimal @db.Decimal(10, 2)
+  taxRate     Decimal @db.Decimal(5, 2) @default(21.00) // e.g., 20.00 for 20%
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@schema("app")
+}
