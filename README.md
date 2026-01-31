@@ -234,4 +234,8 @@ npx prisma migrate reset
 
 ## 📝 License
 
-This project is private and unlicensed.
+**All Rights Reserved**
+
+Copyright © 2026. This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use of this software, via any medium, is strictly prohibited without express written permission from the copyright holder.
+
+This codebase is not open source and no license is granted for its use, modification, or distribution.
