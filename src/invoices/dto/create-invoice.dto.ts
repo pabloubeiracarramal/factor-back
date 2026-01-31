@@ -10,6 +10,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PaymentMethod } from '@prisma/client';
 
 export enum InvoiceStatus {
   DRAFT = 'DRAFT',
@@ -21,10 +22,14 @@ export enum InvoiceStatus {
 export class InvoiceItemDto {
   @IsString()
   @IsNotEmpty()
-  description: string;
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 
   @IsNumber()
-  @Min(1)
+  @Min(0)
   quantity: number;
 
   @IsNumber()
@@ -45,6 +50,10 @@ export class CreateInvoiceDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsString()
+  @IsOptional()
+  observations?: string;
 
   @IsDateString()
   @IsOptional()
@@ -68,6 +77,10 @@ export class CreateInvoiceDto {
   @IsEnum(InvoiceStatus)
   @IsOptional()
   status?: InvoiceStatus = InvoiceStatus.DRAFT;
+
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  paymentMethod?: PaymentMethod;
 
   @IsArray()
   @ValidateNested({ each: true })

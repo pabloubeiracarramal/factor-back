@@ -8,7 +8,7 @@ export class CompaniesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createCompanyDto: CreateCompanyDto) {
-    const { name, street, city, postalCode, state, country, vatNumber, adminEmail, adminName } = createCompanyDto;
+    const { name, street, city, postalCode, state, country, vatNumber, bankAccountNumber, adminEmail, adminName } = createCompanyDto;
 
     // Check if user with this email already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -29,6 +29,7 @@ export class CompaniesService {
         state,
         country,
         vatNumber,
+        bankAccountNumber,
         users: {
           connectOrCreate: {
             where: { email: adminEmail },

@@ -37,6 +37,10 @@ export class CreateCompanyDto {
   @IsOptional()
   vatNumber?: string;
 
+  @IsString()
+  @IsOptional()
+  bankAccountNumber?: string;
+
   // Admin User Details (The first user)
   @IsEmail()
   @IsNotEmpty()

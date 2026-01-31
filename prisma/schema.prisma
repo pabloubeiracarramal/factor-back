@@ -16,6 +16,16 @@ enum UserRole {
   @@schema("app")
 }
 
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CREDIT_CARD
+  PAYPAL
+  OTHER
+
+  @@schema("app")
+}
+
 // 1. The Tenant (Company)
 model Company {
   id         String   @id @default(uuid()) // Unique ID like 'a1b2-c3d4...'
@@ -25,10 +35,11 @@ model Company {
   street     String?  // Street address
   city       String?
   postalCode String?
-  state      String?  // State/Province/Region (optional)
-  country    String?
-  vatNumber  String?  // Tax ID
-  createdAt  DateTime @default(now())
+  state             String?  // State/Province/Region (optional)
+  country           String?
+  vatNumber         String?  // Tax ID
+  bankAccountNumber String?  // Bank account number (IBAN)
+  createdAt         DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   // Relationships
@@ -106,11 +117,13 @@ model Invoice {
   invoiceSeries String @default("2026") // e.g., "2024"
   reference     String? // Reference field for the invoice
   description   String? // Optional description for the invoice
+  observations  String? // Additional observations/notes for the invoice
   status        String   @default("DRAFT") // DRAFT, PENDING, PAID, OVERDUE
   dueDate       DateTime
   emissionDate  DateTime @default(now())
   operationDate DateTime?
   currency      String   @default("EUR") // Currency code, e.g., USD, EUR
+  paymentMethod PaymentMethod? // Payment method for the invoice
 
   // Multi-tenancy: Invoice belongs to a Company
   companyId String
@@ -132,7 +145,8 @@ model Invoice {
 // 5. Invoice Items (Rows)
 model InvoiceItem {
   id          String  @id @default(uuid())
-  description String
+  name        String  // Name of the item
+  description String? // Optional description for the item
   quantity    Int
   price       Decimal @db.Decimal(10, 2)
   taxRate     Decimal @db.Decimal(5, 2) @default(21.00) // e.g., 20.00 for 20%

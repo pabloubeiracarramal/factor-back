@@ -149,13 +149,16 @@ export class InvoicesService {
         reference: createInvoiceDto.reference,
         clientId: createInvoiceDto.clientId,
         description: createInvoiceDto.description,
+        observations: createInvoiceDto.observations,
         status: createInvoiceDto.status || 'DRAFT',
         emissionDate: createInvoiceDto.emissionDate ? new Date(createInvoiceDto.emissionDate) : new Date(),
         dueDate: new Date(createInvoiceDto.dueDate),
         currency: createInvoiceDto.currency || 'EUR',
+        paymentMethod: createInvoiceDto.paymentMethod,
         companyId,
         items: {
           create: createInvoiceDto.items.map((item) => ({
+            name: item.name,
             description: item.description,
             quantity: item.quantity,
             price: item.price,
@@ -286,6 +289,7 @@ export class InvoicesService {
       data.items = {
         deleteMany: {}, // Delete all existing items
         create: items.map((item) => ({
+          name: item.name,
           description: item.description,
           quantity: item.quantity,
           price: item.price,
@@ -643,7 +647,7 @@ export class InvoicesService {
 
     doc
       .font('Helvetica')
-      .text(invoice.description || invoice.items.map((i) => i.description).join(', '), LEFT, yStart + 12, {
+      .text(invoice.description || invoice.items.map((i) => i.name).join(', '), LEFT, yStart + 12, {
         width: RIGHT - LEFT,
       });
 
@@ -659,11 +663,12 @@ export class InvoicesService {
       { label: 'Precio', x: 290, width: 65, align: 'right' as const },
       { label: 'IVA %', x: 355, width: 40, align: 'right' as const },
       { label: 'Subtotal', x: 395, width: 75, align: 'right' as const },
-      { label: 'Total', x: 470, width: 85, align: 'right' as const },
+      { label: 'Total', x: 470, width: 70, align: 'right' as const },
     ];
 
     const minRowHeight = 20;
     const rowPadding = 5;
+    const tableWidth = RIGHT - LEFT;
 
     // Table header
     doc.fontSize(this.PDF_LAYOUT.FONTS.SMALL).font('Helvetica-Bold');
@@ -678,6 +683,7 @@ export class InvoicesService {
     doc.font('Helvetica');
     let yPosition = yStart + 20;
     let totalQuantity = 0;
+    let rowIndex = 0;
 
     const currencySymbol = this.getCurrencySymbol(invoice.currency);
 
@@ -687,37 +693,65 @@ export class InvoicesService {
       const itemTotal = itemSubtotal + itemTax;
       totalQuantity += item.quantity;
 
-      // Calculate dynamic row height based on description text
-      const descriptionHeight = doc.heightOfString(item.description, { width: columns[2].width });
-      const rowHeight = Math.max(minRowHeight, descriptionHeight + rowPadding * 2);
+      // Build item text: name + optional description (description in smaller text below)
+      const itemText = item.description ? `${item.name}\n${item.description}` : item.name;
+
+      // Calculate dynamic row height based on item text
+      const itemTextHeight = doc.heightOfString(itemText, { width: columns[2].width });
+      const rowHeight = Math.max(minRowHeight, itemTextHeight + rowPadding * 2 + 4); // Extra padding between rows
       const textY = yPosition + rowPadding;
 
-      doc.text(item.quantity.toString(), columns[0].x, textY, {
+      // Draw alternating row background
+      if (rowIndex % 2 === 1) {
+        doc.save();
+        doc.fillColor('#f5f5f5').rect(LEFT, yPosition, tableWidth, rowHeight).fill();
+        doc.fillColor('#000000');
+        doc.restore();
+      }
+
+      // If quantity is 0, only show item text (no numbers)
+      const isZeroQuantity = item.quantity === 0;
+
+      doc.text(isZeroQuantity ? '' : item.quantity.toString(), columns[0].x, textY, {
         width: columns[0].width,
         align: columns[0].align,
       });
       doc.text('', columns[1].x, textY, { width: columns[1].width });
-      doc.text(item.description, columns[2].x, textY, {
+      
+      // Draw item name (larger font, regular weight)
+      doc.font('Helvetica').fontSize(this.PDF_LAYOUT.FONTS.NORMAL).text(item.name, columns[2].x, textY, {
         width: columns[2].width,
       });
-      doc.text(`${Number(item.price).toFixed(2)} ${currencySymbol}`, columns[3].x, textY, {
+      
+      // Draw description below name if exists (smaller font)
+      if (item.description) {
+        const nameHeight = doc.heightOfString(item.name, { width: columns[2].width });
+        doc.fontSize(this.PDF_LAYOUT.FONTS.TINY)
+          .text(item.description, columns[2].x, textY + nameHeight + 3, {
+            width: columns[2].width,
+          });
+      }
+      
+      doc.fontSize(this.PDF_LAYOUT.FONTS.SMALL);
+      doc.text(isZeroQuantity ? '' : `${Number(item.price).toFixed(2)} ${currencySymbol}`, columns[3].x, textY, {
         width: columns[3].width,
         align: columns[3].align,
       });
-      doc.text(Number(item.taxRate).toFixed(0) + '%', columns[4].x, textY, {
+      doc.text(isZeroQuantity ? '' : Number(item.taxRate).toFixed(0) + '%', columns[4].x, textY, {
         width: columns[4].width,
         align: columns[4].align,
       });
-      doc.text(`${itemSubtotal.toFixed(2)} ${currencySymbol}`, columns[5].x, textY, {
+      doc.text(isZeroQuantity ? '' : `${itemSubtotal.toFixed(2)} ${currencySymbol}`, columns[5].x, textY, {
         width: columns[5].width,
         align: columns[5].align,
       });
-      doc.text(`${itemTotal.toFixed(2)} ${currencySymbol}`, columns[6].x, textY, {
+      doc.text(isZeroQuantity ? '' : `${itemTotal.toFixed(2)} ${currencySymbol}`, columns[6].x, textY, {
         width: columns[6].width,
         align: columns[6].align,
       });
 
       yPosition += rowHeight;
+      rowIndex++;
     });
 
     // Total row
@@ -811,16 +845,62 @@ export class InvoicesService {
     return yStart + this.PDF_LAYOUT.SPACING.LARGE_SECTION;
   }
 
-  private drawPaymentInfo(doc: PDFKit.PDFDocument, yStart: number): void {
+  private getPaymentMethodLabel(paymentMethod: string | null): string {
+    const labels: Record<string, string> = {
+      BANK_TRANSFER: 'TRANSFERENCIA BANCARIA',
+      CASH: 'AL CONTADO',
+      CREDIT_CARD: 'TARJETA DE CRÉDITO',
+      PAYPAL: 'PAYPAL',
+      OTHER: 'OTRO',
+    };
+    return labels[paymentMethod || 'BANK_TRANSFER'] || 'TRANSFERENCIA BANCARIA';
+  }
+
+  private drawPaymentInfo(doc: PDFKit.PDFDocument, invoice: InvoiceWithRelations, yStart: number): number {
     const { LEFT } = this.PDF_LAYOUT.MARGINS;
+    const paymentMethod = invoice.paymentMethod || 'BANK_TRANSFER';
 
     doc
       .fontSize(this.PDF_LAYOUT.FONTS.SMALL)
       .font('Helvetica-Bold')
       .text('Forma de Pago:', LEFT, yStart);
 
-    doc.font('Helvetica').text('TRANSFERENCIA BANCARIA', LEFT, yStart + 15);
-    doc.text('EFECTIVO', LEFT, yStart + 27);
+    doc.font('Helvetica').text(this.getPaymentMethodLabel(paymentMethod), LEFT, yStart + 15);
+
+    let yEnd = yStart + 30;
+
+    // Show bank account number only for bank transfer
+    if (paymentMethod === 'BANK_TRANSFER' && invoice.company?.bankAccountNumber) {
+      doc
+        .font('Helvetica-Bold')
+        .text('Cuenta Bancaria (IBAN):', LEFT, yStart + 35);
+      doc.font('Helvetica').text(invoice.company.bankAccountNumber, LEFT, yStart + 50);
+      yEnd = yStart + 65;
+    }
+
+    return yEnd;
+  }
+
+  private drawObservations(doc: PDFKit.PDFDocument, invoice: InvoiceWithRelations, yStart: number): number {
+    if (!invoice.observations) {
+      return yStart;
+    }
+
+    const { LEFT, RIGHT } = this.PDF_LAYOUT.MARGINS;
+
+    doc
+      .fontSize(this.PDF_LAYOUT.FONTS.SMALL)
+      .font('Helvetica-Bold')
+      .text('Observaciones:', LEFT, yStart);
+
+    doc
+      .font('Helvetica')
+      .text(invoice.observations, LEFT, yStart + 15, {
+        width: RIGHT - LEFT,
+      });
+
+    const textHeight = doc.heightOfString(invoice.observations, { width: RIGHT - LEFT });
+    return yStart + 15 + textHeight + this.PDF_LAYOUT.SPACING.SECTION;
   }
 
   async generatePDF(id: string): Promise<Buffer> {
@@ -855,7 +935,8 @@ export class InvoicesService {
         yPos = this.drawItemsTable(doc, invoice, yPos);
         yPos = this.drawTaxSummary(doc, invoice, yPos);
         yPos = this.drawTotalSection(doc, invoice, yPos);
-        this.drawPaymentInfo(doc, yPos);
+        yPos = this.drawPaymentInfo(doc, invoice, yPos);
+        this.drawObservations(doc, invoice, yPos + 20);
 
         doc.end();
       } catch (error) {
