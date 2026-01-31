@@ -1,98 +1,237 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Factor Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A multi-tenant invoicing API built with NestJS, Prisma, and PostgreSQL. This backend powers the Factor invoicing application, providing robust authentication, company management, client handling, and invoice generation with PDF export capabilities.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🚀 Features
 
-## Description
+- **Multi-tenant Architecture**: Companies are isolated with their own users, clients, and invoices
+- **Google OAuth Authentication**: Secure login via Google with JWT token management
+- **Company Invitations**: Invite team members to join your company via email
+- **Client Management**: Full CRUD operations for managing clients
+- **Invoice Management**: Create, update, and track invoices with multiple statuses (DRAFT, PENDING, PAID, OVERDUE)
+- **PDF Generation**: Generate professional invoice PDFs for preview and download
+- **Dashboard Statistics**: Get real-time insights on invoice data
+- **Role-based Access**: User roles (USER, ADMIN) for access control
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🛠️ Tech Stack
 
-## Project setup
+- **Framework**: [NestJS](https://nestjs.com/) v11
+- **Database**: PostgreSQL
+- **ORM**: [Prisma](https://www.prisma.io/) v7
+- **Authentication**: Passport.js with Google OAuth 2.0 & JWT
+- **PDF Generation**: PDFKit
+- **Validation**: class-validator & class-transformer
+- **Language**: TypeScript
 
-```bash
-$ npm install
+## 📁 Project Structure
+
+```
+src/
+├── auth/                  # Authentication module (Google OAuth, JWT)
+│   ├── decorators/        # Custom decorators (CurrentUser)
+│   ├── guards/            # Auth guards (JWT, Google)
+│   └── strategies/        # Passport strategies
+├── clients/               # Client management module
+│   ├── dto/               # Data transfer objects
+│   └── entities/          # Client entity
+├── companies/             # Company/tenant management
+│   ├── dto/
+│   └── entities/
+├── invoices/              # Invoice management & PDF generation
+│   ├── dto/
+│   └── entities/
+├── prisma/                # Prisma service module
+└── users/                 # User management
+    ├── dto/
+    └── entities/
+
+prisma/
+├── schema.prisma          # Database schema
+└── migrations/            # Database migrations
 ```
 
-## Compile and run the project
+## 📋 Prerequisites
 
-```bash
-# development
-$ npm run start
+- Node.js (v18 or higher recommended)
+- PostgreSQL database
+- Google OAuth credentials (Client ID & Secret)
 
-# watch mode
-$ npm run start:dev
+## ⚙️ Environment Variables
 
-# production mode
-$ npm run start:prod
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/factor?schema=app"
+
+# JWT
+JWT_SECRET="your-jwt-secret-key"
+
+# Google OAuth
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_CALLBACK_URL="http://localhost:3000/auth/google/callback"
+
+# Frontend
+FRONTEND_URL="http://localhost:5173"
 ```
 
-## Run tests
+## 🚀 Getting Started
+
+### Installation
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Database Setup
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Generate Prisma client
+npx prisma generate
+
+# Run migrations
+npx prisma migrate dev
+
+# (Optional) Open Prisma Studio to view data
+npx prisma studio
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Running the Application
 
-## Resources
+```bash
+# Development mode (with hot reload)
+npm run start:dev
 
-Check out a few resources that may come in handy when working with NestJS:
+# Production mode
+npm run build
+npm run start:prod
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# Debug mode
+npm run start:debug
+```
 
-## Support
+The API will be available at `http://localhost:3000`.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## 📚 API Endpoints
 
-## Stay in touch
+### Authentication
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/auth/google` | Initiate Google OAuth login |
+| GET | `/auth/google/callback` | Google OAuth callback |
+| GET | `/auth/profile` | Get current user profile |
+| POST | `/auth/invitations` | Create company invitation |
+| POST | `/auth/invitations/:token/accept` | Accept invitation |
 
-## License
+### Companies
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/companies` | Create a new company |
+| GET | `/companies/:id` | Get company details |
+| PATCH | `/companies/:id` | Update company |
+| DELETE | `/companies/:id` | Delete company |
+
+### Clients
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/clients` | Create a new client |
+| GET | `/clients` | List all clients (with filters) |
+| GET | `/clients/:id` | Get client details |
+| PATCH | `/clients/:id` | Update client |
+| DELETE | `/clients/:id` | Delete client |
+
+### Invoices
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/invoices` | Create a new invoice |
+| GET | `/invoices` | List all invoices (with filters) |
+| GET | `/invoices/dashboard` | Get dashboard statistics |
+| GET | `/invoices/:id` | Get invoice details |
+| PATCH | `/invoices/:id` | Update invoice |
+| DELETE | `/invoices/:id` | Delete invoice |
+| GET | `/invoices/:id/pdf/preview` | Preview invoice PDF |
+| GET | `/invoices/:id/pdf/download` | Download invoice PDF |
+
+## 🧪 Testing
+
+```bash
+# Unit tests
+npm run test
+
+# Watch mode
+npm run test:watch
+
+# End-to-end tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## 🔧 Development
+
+### Code Formatting & Linting
+
+```bash
+# Format code with Prettier
+npm run format
+
+# Lint and fix issues
+npm run lint
+```
+
+### Database Schema Changes
+
+After modifying `prisma/schema.prisma`:
+
+```bash
+# Create a new migration
+npx prisma migrate dev --name your_migration_name
+
+# Reset database (development only)
+npx prisma migrate reset
+```
+
+## 📊 Data Models
+
+### Company (Tenant)
+- Multi-tenant root entity
+- Contains users, clients, and invoices
+- Stores company details (name, address, VAT, etc.)
+
+### User
+- Belongs to a company (optional for new users)
+- Google OAuth integration
+- Role-based (USER, ADMIN)
+
+### Client
+- Belongs to a company
+- Contains contact and billing information
+- Associated with invoices
+
+### Invoice
+- Belongs to a company and client
+- Contains invoice items
+- Supports multiple statuses and currencies
+- PDF generation capability
+
+### Invoice Item
+- Line items within an invoice
+- Contains quantity, price, and tax rate
+
+## 🔐 Authentication Flow
+
+1. User clicks "Login with Google"
+2. Redirected to Google OAuth consent screen
+3. After approval, callback creates/finds user
+4. JWT token generated and sent to frontend
+5. All subsequent API calls use JWT in Authorization header
+
+## 📝 License
+
+This project is private and unlicensed.
