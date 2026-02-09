@@ -16,7 +16,6 @@ export enum InvoiceStatus {
   DRAFT = 'DRAFT',
   PENDING = 'PENDING',
   PAID = 'PAID',
-  OVERDUE = 'OVERDUE',
 }
 
 export class InvoiceItemDto {
@@ -60,7 +59,14 @@ export class CreateInvoiceDto {
   emissionDate?: string;
 
   @IsDateString()
-  dueDate: string;
+  @IsOptional()
+  operationDate?: string;
+
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  @Type(() => Number)
+  dueDays?: number = 30;
 
   @IsString()
   @IsOptional()

@@ -118,7 +118,8 @@ model Invoice {
   reference     String? // Reference field for the invoice
   description   String? // Optional description for the invoice
   observations  String? // Additional observations/notes for the invoice
-  status        String   @default("DRAFT") // DRAFT, PENDING, PAID, OVERDUE
+  status        String   @default("DRAFT") // DRAFT, PENDING, PAID
+  dueDays       Int      @default(30) // Number of days from emission date
   dueDate       DateTime
   emissionDate  DateTime @default(now())
   operationDate DateTime?

@@ -134,14 +134,25 @@ export class InvoicesService {
 
     // Determine invoice series
     const invoiceSeries = createInvoiceDto.invoiceSeries || new Date().getFullYear().toString();
+    const isDraft = !createInvoiceDto.status || createInvoiceDto.status === 'DRAFT';
+    const dueDays = createInvoiceDto.dueDays ?? 30;
 
-    // Generate invoice number based on series
-    const invoiceCount = await this.prisma.invoice.count({
-      where: { companyId, invoiceSeries },
-    });
-    const invoiceNumber = String(invoiceCount + 1).padStart(4, '0');
+    let invoiceNumber = '';
+    let emissionDate: Date = new Date(0);
 
-    // Create invoice with items
+    if (!isDraft) {
+      const invoiceCount = await this.prisma.invoice.count({
+        where: { companyId, invoiceSeries, status: { not: 'DRAFT' } },
+      });
+      invoiceNumber = String(invoiceCount + 1).padStart(4, '0');
+      emissionDate = createInvoiceDto.emissionDate ? new Date(createInvoiceDto.emissionDate) : new Date();
+    }
+
+    // Calculate dueDate from dueDays
+    const baseDate = isDraft ? new Date() : emissionDate;
+    const dueDate = new Date(baseDate);
+    dueDate.setDate(dueDate.getDate() + dueDays);
+
     const invoice = await this.prisma.invoice.create({
       data: {
         invoiceNumber,
@@ -150,9 +161,11 @@ export class InvoicesService {
         clientId: createInvoiceDto.clientId,
         description: createInvoiceDto.description,
         observations: createInvoiceDto.observations,
-        status: createInvoiceDto.status || 'DRAFT',
-        emissionDate: createInvoiceDto.emissionDate ? new Date(createInvoiceDto.emissionDate) : new Date(),
-        dueDate: new Date(createInvoiceDto.dueDate),
+        status: isDraft ? 'DRAFT' : (createInvoiceDto.status || 'DRAFT'),
+        emissionDate,
+        operationDate: createInvoiceDto.operationDate ? new Date(createInvoiceDto.operationDate) : null,
+        dueDays,
+        dueDate,
         currency: createInvoiceDto.currency || 'EUR',
         paymentMethod: createInvoiceDto.paymentMethod,
         companyId,
@@ -172,6 +185,97 @@ export class InvoicesService {
     });
 
     return invoice;
+  }
+
+  async confirm(id: string, userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true },
+    });
+
+    if (!user?.companyId) {
+      throw new BadRequestException(
+        'User must be associated with a company to confirm invoices',
+      );
+    }
+
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException(`Invoice with id ${id} not found`);
+    }
+
+    if (invoice.status !== 'DRAFT') {
+      throw new BadRequestException('Only draft invoices can be confirmed');
+    }
+
+    if (invoice.companyId !== user.companyId) {
+      throw new BadRequestException('Invoice does not belong to your company');
+    }
+
+    const invoiceSeries = invoice.invoiceSeries;
+    const invoiceCount = await this.prisma.invoice.count({
+      where: {
+        companyId: user.companyId,
+        invoiceSeries,
+        status: { not: 'DRAFT' },
+      },
+    });
+    const invoiceNumber = String(invoiceCount + 1).padStart(4, '0');
+
+    const emissionDate = new Date();
+    const dueDate = new Date(emissionDate);
+    dueDate.setDate(dueDate.getDate() + invoice.dueDays);
+
+    return this.prisma.invoice.update({
+      where: { id },
+      data: {
+        status: 'PENDING',
+        invoiceNumber,
+        emissionDate,
+        dueDate,
+      },
+      include: { items: true },
+    });
+  }
+
+  async pay(id: string, userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true },
+    });
+
+    if (!user?.companyId) {
+      throw new BadRequestException(
+        'User must be associated with a company to mark invoices as paid',
+      );
+    }
+
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException(`Invoice with id ${id} not found`);
+    }
+
+    if (invoice.status !== 'PENDING') {
+      throw new BadRequestException('Only pending invoices can be marked as paid');
+    }
+
+    if (invoice.companyId !== user.companyId) {
+      throw new BadRequestException('Invoice does not belong to your company');
+    }
+
+    return this.prisma.invoice.update({
+      where: { id },
+      data: {
+        status: 'PAID',
+      },
+      include: { items: true },
+    });
   }
 
   async findAll(userId: string, filterDto: FilterInvoiceDto) {
@@ -302,8 +406,14 @@ export class InvoicesService {
     if (updateData.emissionDate) {
       data.emissionDate = new Date(updateData.emissionDate);
     }
-    if (updateData.dueDate) {
-      data.dueDate = new Date(updateData.dueDate);
+
+    // Recalculate dueDate if dueDays changed
+    if (updateData.dueDays !== undefined) {
+      const emissionDate = data.emissionDate || invoice.emissionDate;
+      const baseDate = invoice.status === 'DRAFT' ? new Date() : new Date(emissionDate);
+      const dueDate = new Date(baseDate);
+      dueDate.setDate(dueDate.getDate() + updateData.dueDays);
+      data.dueDate = dueDate;
     }
 
     return this.prisma.invoice.update({

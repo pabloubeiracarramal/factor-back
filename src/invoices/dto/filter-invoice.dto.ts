@@ -10,8 +10,8 @@ import { Type } from 'class-transformer';
 
 export enum InvoiceStatus {
   DRAFT = 'DRAFT',
+  PENDING = 'PENDING',
   PAID = 'PAID',
-  OVERDUE = 'OVERDUE',
 }
 
 export class FilterInvoiceDto {

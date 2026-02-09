@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Invoice" ADD COLUMN     "dueDays" INTEGER NOT NULL DEFAULT 30;

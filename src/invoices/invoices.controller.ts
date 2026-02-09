@@ -31,6 +31,16 @@ export class InvoicesController {
     return this.invoicesService.findOne(id);
   }
 
+  @Patch(':id/confirm')
+  confirm(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.invoicesService.confirm(id, user.userId);
+  }
+
+  @Patch(':id/pay')
+  pay(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.invoicesService.pay(id, user.userId);
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateInvoiceDto: UpdateInvoiceDto) {
     return this.invoicesService.update(id, updateInvoiceDto);
