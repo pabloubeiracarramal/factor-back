@@ -40,11 +40,12 @@ RUN apk add --no-cache openssl
 # Set NODE_ENV to production
 ENV NODE_ENV=production
 
-# Copy package files
+# Copy package files and node_modules from deps stage, then prune dev deps
 COPY package*.json ./
+COPY --from=deps /app/node_modules ./node_modules
 
-# Install only production dependencies
-RUN npm ci --only=production
+# Remove devDependencies without a network call
+RUN npm prune --omit=dev
 
 # Copy Prisma schema and generate client
 COPY prisma ./prisma/
