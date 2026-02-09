@@ -39,11 +39,15 @@ export class InvoicesService {
 
     const companyId = user.companyId;
     const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
 
     // Fetch all data in parallel
     const [invoices, users, invitations] = await Promise.all([
       this.prisma.invoice.findMany({
-        where: { companyId },
+        where: {
+          companyId,
+          createdAt: { gte: startOfYear },
+        },
         include: { items: true, client: true },
       }),
       this.prisma.user.count({ where: { companyId } }),
@@ -72,20 +76,18 @@ export class InvoicesService {
     );
 
     return {
-      metrics: {
-        totalRevenue,
-        outstandingAmount,
-        invoiceCount: {
-          total: invoices.length,
-          paid: paid.length,
-          overdue: overdue.length,
-          draft: drafts.length,
-          pending: pending.length,
-        },
+      totalRevenue,
+      outstandingAmount,
+      invoiceCounts: {
+        total: invoices.length,
+        paid: paid.length,
+        overdue: overdue.length,
+        draft: drafts.length,
+        pending: pending.length,
       },
       topClients: this.getTopClients(paid),
       monthlyRevenue: this.getMonthlyRevenue(paid),
-      team: {
+      teamStats: {
         activeMembers: users,
         pendingInvitations: invitations,
       },
@@ -100,8 +102,8 @@ export class InvoicesService {
       clientMap.set(clientName, current + this.calculateInvoiceTotalWithTax(inv));
     });
     return Array.from(clientMap.entries())
-      .map(([name, total]) => ({ name, total }))
-      .sort((a, b) => b.total - a.total)
+      .map(([clientName, totalRevenue]) => ({ clientName, totalRevenue }))
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 5);
   }
 
@@ -113,8 +115,8 @@ export class InvoicesService {
       monthMap.set(month, current + this.calculateInvoiceTotalWithTax(inv));
     });
     return Array.from(monthMap.entries())
-      .map(([month, total]) => ({ month, total }))
-      .sort((a, b) => a.month.localeCompare(b.month));
+      .map(([month, revenue]) => ({ month: month.split('-')[1], revenue, year: parseInt(month.split('-')[0]) }))
+      .sort((a, b) => (a.year - b.year) || a.month.localeCompare(b.month));
   }
 
   async create(createInvoiceDto: CreateInvoiceDto, userId: string) {
