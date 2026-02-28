@@ -140,18 +140,17 @@ export class InvoicesService {
     const dueDays = createInvoiceDto.dueDays ?? 30;
 
     let invoiceNumber = '';
-    let emissionDate: Date = new Date(0);
+    let emissionDate: Date = createInvoiceDto.emissionDate ? new Date(createInvoiceDto.emissionDate) : new Date();
 
     if (!isDraft) {
       const invoiceCount = await this.prisma.invoice.count({
         where: { companyId, invoiceSeries, status: { not: 'DRAFT' } },
       });
       invoiceNumber = String(invoiceCount + 1).padStart(4, '0');
-      emissionDate = createInvoiceDto.emissionDate ? new Date(createInvoiceDto.emissionDate) : new Date();
     }
 
     // Calculate dueDate from dueDays
-    const baseDate = isDraft ? new Date() : emissionDate;
+    const baseDate = emissionDate;
     const dueDate = new Date(baseDate);
     dueDate.setDate(dueDate.getDate() + dueDays);
 
@@ -656,11 +655,13 @@ export class InvoicesService {
     const fontSize = this.PDF_LAYOUT.FONTS.SMALL;
     const minDataRowHeight = 20;
 
+    const number = invoice.invoiceNumber ? `${invoice.invoiceSeries}-${invoice.invoiceNumber}` : 'Borrador';
+
     // Data to display (first row - invoice number, dates)
     const data = [
-      `${invoice.invoiceSeries}-${invoice.invoiceNumber}`,
+      number,
       new Date(invoice.emissionDate).toLocaleDateString('es-ES'),
-      new Date(invoice.emissionDate).toLocaleDateString('es-ES'), // Operation date (same as emission for now)
+      new Date(invoice.operationDate ?? invoice.emissionDate).toLocaleDateString('es-ES'),
       new Date(invoice.dueDate).toLocaleDateString('es-ES'),
     ];
 
@@ -720,7 +721,7 @@ export class InvoicesService {
 
     // Data (first row - 4 columns)
     doc.font('Helvetica');
-    const dataAlignments: ('left' | 'center' | 'right')[] = ['right', 'left', 'left', 'left'];
+    const dataAlignments: ('left' | 'center' | 'right')[] = ['left', 'left', 'left', 'left'];
     xPos = LEFT;
     for (let i = 0; i < 4; i++) {
       doc.text(data[i], xPos + padding, Y + headerRowHeight + verticalPadding, {
@@ -750,6 +751,10 @@ export class InvoicesService {
   }
 
   private drawDescription(doc: PDFKit.PDFDocument, invoice: InvoiceWithRelations, yStart: number): number {
+    if (!invoice.description) {
+      return yStart + this.PDF_LAYOUT.SPACING.SECTION;
+    }
+
     const { LEFT, RIGHT } = this.PDF_LAYOUT.MARGINS;
 
     doc
@@ -759,7 +764,7 @@ export class InvoicesService {
 
     doc
       .font('Helvetica')
-      .text(invoice.description || invoice.items.map((i) => i.name).join(', '), LEFT, yStart + 12, {
+      .text(invoice.description, LEFT, yStart + 12, {
         width: RIGHT - LEFT,
       });
 

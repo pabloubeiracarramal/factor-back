@@ -11,7 +11,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+RUN npm ci --maxsockets=5 --fetch-timeout=600000 --fetch-retries=5 --fetch-retry-mintimeout=30000
 
 # Generate Prisma Client
 RUN npx prisma generate
