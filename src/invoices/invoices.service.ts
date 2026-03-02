@@ -226,18 +226,23 @@ export class InvoicesService {
     });
     const invoiceNumber = String(invoiceCount + 1).padStart(4, '0');
 
-    const emissionDate = new Date();
+    const emissionDate = invoice.emissionDate ?? new Date();
     const dueDate = new Date(emissionDate);
     dueDate.setDate(dueDate.getDate() + invoice.dueDays);
 
+    const updateData: any = {
+      status: 'PENDING',
+      invoiceNumber,
+      dueDate,
+    };
+
+    if (!invoice.emissionDate) {
+      updateData.emissionDate = emissionDate;
+    }
+
     return this.prisma.invoice.update({
       where: { id },
-      data: {
-        status: 'PENDING',
-        invoiceNumber,
-        emissionDate,
-        dueDate,
-      },
+      data: updateData,
       include: { items: true },
     });
   }
@@ -408,12 +413,16 @@ export class InvoicesService {
       data.emissionDate = new Date(updateData.emissionDate);
     }
 
-    // Recalculate dueDate if dueDays changed
-    if (updateData.dueDays !== undefined) {
-      const emissionDate = data.emissionDate || invoice.emissionDate;
-      const baseDate = invoice.status === 'DRAFT' ? new Date() : new Date(emissionDate);
-      const dueDate = new Date(baseDate);
-      dueDate.setDate(dueDate.getDate() + updateData.dueDays);
+    if (updateData.operationDate) {
+      data.operationDate = new Date(updateData.operationDate);
+    }
+
+    // Recalculate dueDate if emissionDate or dueDays changed
+    if (updateData.emissionDate !== undefined || updateData.dueDays !== undefined) {
+      const emissionDate = data.emissionDate || invoice.emissionDate || new Date();
+      const dueDays = updateData.dueDays ?? invoice.dueDays;
+      const dueDate = new Date(emissionDate);
+      dueDate.setDate(dueDate.getDate() + dueDays);
       data.dueDate = dueDate;
     }
 
